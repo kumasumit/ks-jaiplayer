@@ -1,5 +1,7 @@
 package com.ks.jaiplayer.vlc
 
+import com.ks.jaiplayer.audio.AudioChain
+import com.ks.jaiplayer.audio.AudioSupport
 import com.ks.jaiplayer.player.MediaRef
 import com.ks.jaiplayer.player.clampSpeed
 import com.ks.jaiplayer.player.PlaybackState
@@ -57,6 +59,10 @@ class VlcPlayerEngine private constructor(
     private var wantedVolume = 100
     private var wantedMute = false
     private var wantedSpeed = 1f
+    @Volatile private var videoEffects: AudioChain? = null
+    @Volatile private var musicEffects: AudioChain? = null
+    /** The chain last given to libVLC; only touched on the libVLC thread. */
+    private var appliedEffects: Any? = UNSET
     private var everPlayed = false
     private val pendingSeek = AtomicLong(-1)
     @Volatile private var seekTarget = -1L
@@ -84,6 +90,7 @@ class VlcPlayerEngine private constructor(
             lib.libvlc_video_set_callbacks(mp, frames.lockFrame, null, frames.display, null)
             instance = inst
             player = mp
+            applyEffects(lib, mp, audioOnly = false)
             FrameStats.mark("libvlcReady")
             poll()
         }
@@ -107,6 +114,7 @@ class VlcPlayerEngine private constructor(
             everPlayed = false
             l.libvlc_media_player_stop(mp)
             frames.clear()
+            applyEffects(l, mp, audioOnly = false)
             val path = runCatching { File(URI(media.uri)).path }.getOrNull()
             currentPath = path
             val hardware = hardwareOption != null && path != null && !hasSubtitles(l, inst, path)
@@ -211,6 +219,40 @@ class VlcPlayerEngine private constructor(
         wantedSpeed = clampSpeed(speed)
         _state.update { it.copy(speed = wantedSpeed) }
         call { mp -> libvlc_media_player_set_rate(mp, wantedSpeed) }
+    }
+
+    override val audioSupport = AudioSupport.Equalizer
+
+    override fun setAudioEffects(video: AudioChain?, music: AudioChain?) {
+        videoEffects = video
+        musicEffects = music
+        call { mp -> applyEffects(this, mp, audioOnly = isAudioOnly()) }
+    }
+
+    /** Known to be music: a second has played and no video frame has come. */
+    private fun isAudioOnly(): Boolean = _state.value.let { it.status == PlaybackStatus.Playing && !it.hasVideo && it.positionMs >= 1000 }
+
+    /**
+     * libVLC's equalizer, with its preamp lowered by the curve's highest boost so nothing clips
+     * ([VLC_UNITY_PREAMP_DB] is unchanged level: measured, as VLC's own flat preset).
+     * Null switches it off, and the audio passes unchanged. Runs on the libVLC thread.
+     */
+    private fun applyEffects(l: LibVlc, mp: Pointer, audioOnly: Boolean) {
+        val chain = if (audioOnly) musicEffects else videoEffects
+        if (chain == appliedEffects) return
+        appliedEffects = chain
+        if (chain == null) {
+            l.libvlc_media_player_set_equalizer(mp, null)
+            return
+        }
+        val eq = l.libvlc_audio_equalizer_new() ?: return
+        try {
+            l.libvlc_audio_equalizer_set_preamp(eq, (VLC_UNITY_PREAMP_DB - chain.peakBoostDb).coerceIn(-20f, VLC_UNITY_PREAMP_DB))
+            chain.bandsDb.forEachIndexed { band, db -> l.libvlc_audio_equalizer_set_amp_at_index(eq, db.coerceIn(-20f, 20f), band) }
+            l.libvlc_media_player_set_equalizer(mp, eq)
+        } finally {
+            l.libvlc_audio_equalizer_release(eq)
+        }
     }
 
     override fun selectAudioTrack(id: Int) {
@@ -334,6 +376,7 @@ class VlcPlayerEngine private constructor(
                     next
                 }
             }
+            if (vlcState == LibVlc.STATE_PLAYING) applyEffects(l, mp, audioOnly = isAudioOnly())
             lastVlcState = vlcState
             ticks++
             delay(POLL_MS)
@@ -357,6 +400,10 @@ class VlcPlayerEngine private constructor(
     }
 
     companion object {
+        private val UNSET = Any()
+
+        /** libVLC's equalizer preamp that leaves the level unchanged (0 would lower it by 12 dB). */
+        internal const val VLC_UNITY_PREAMP_DB = 12f
         private const val POLL_MS = 200L
         private const val SEEK_SETTLE_NS = 1_500_000_000L
         private const val SEEK_NEAR_MS = 1_000L

@@ -9,9 +9,11 @@ import com.sun.jna.Pointer
  * Receives decoded frames from libVLC's video callbacks and hands the newest one to the surface,
  * without copying it.
  *
- * Frames arrive as planar YUV 4:2:0 (`I420`): the surface turns them into colour on the GPU,
- * so libVLC does no colour conversion on the CPU and each frame is under half the size of an
- * RGB one. Subtitles are already blended into the planes.
+ * Frames come in a YUV 4:2:0 layout ([Chroma]) that costs the device least: VideoToolbox's
+ * 10-bit pictures stay 10-bit (P010, a plain copy instead of two software conversions);
+ * everything else is 8-bit I420, 10-bit software decoding included, where converting down is
+ * cheaper than uploading frames twice the size (specs/smoothness.md). The surface turns YUV into
+ * colour on the GPU. Subtitles are already blended into the planes (software decoding).
  *
  * Three native buffers rotate: libVLC decodes into one, one holds the newest finished frame, and
  * one is on screen. The surface draws straight from the buffer's memory, and that buffer is not
@@ -20,17 +22,39 @@ import com.sun.jna.Pointer
  * other: the lock only guards the three indices.
  */
 internal class VideoFrames {
-    /** Where the three planes of a frame lie in its buffer. */
-    class Layout(val width: Int, val height: Int) {
+    /**
+     * The YUV 4:2:0 layouts asked of libVLC: planar 8-bit I420, or P010 (16 bits a sample with
+     * the 10 bits at the top, Cb and Cr interleaved in one plane). There is no NV12: this Skia
+     * build cannot wrap an 8-bit two-channel plane, and VideoToolbox's 8-bit frames become I420
+     * in the same copy libVLC makes anyway.
+     */
+    enum class Chroma(val fourcc: String, val bytesPerSample: Int, val planes: Int) {
+        I420("I420", bytesPerSample = 1, planes = 3),
+        P010("P010", bytesPerSample = 2, planes = 2);
+
+        companion object {
+            /**
+             * The layout for the chroma libVLC proposes: VideoToolbox's 10-bit CoreVideo frames
+             * (`CVPP`) become P010 with a plain copy; everything else is I420.
+             */
+            fun forProposed(proposed: String): Chroma = if (proposed == "CVPP" || proposed == "P010") P010 else I420
+        }
+    }
+
+    /** Where the planes of a frame lie in its buffer. */
+    class Layout(val width: Int, val height: Int, val chroma: Chroma = Chroma.I420) {
         val chromaWidth = (width + 1) / 2
         val chromaHeight = (height + 1) / 2
-        val lumaPitch = align(width, 32)
-        val chromaPitch = align(chromaWidth, 32)
+        val planes = chroma.planes
+        val lumaPitch = align(width * chroma.bytesPerSample, 32)
+        /** Bytes a line of a chroma plane (P010: both chroma samples). */
+        val chromaPitch = align(chromaWidth * chroma.bytesPerSample * (if (planes == 2) 2 else 1), 32)
         val lumaLines = align(height, 16)
         val chromaLines = lumaLines / 2
         val uOffset = lumaPitch.toLong() * lumaLines
+        /** The Cr plane; P010 has none (Cr is beside Cb). */
         val vOffset = uOffset + chromaPitch.toLong() * chromaLines
-        val bytes = vOffset + chromaPitch.toLong() * chromaLines
+        val bytes = if (planes == 2) vOffset else vOffset + chromaPitch.toLong() * chromaLines
 
         private fun align(value: Int, to: Int) = (value + to - 1) / to * to
     }
@@ -57,14 +81,18 @@ internal class VideoFrames {
 
     // JNA callbacks must stay strongly referenced while libVLC can call them.
     val format = LibVlc.FormatCallback { _, chroma, w, h, pitches, lines ->
-        val l = Layout(w.getInt(0), h.getInt(0))
-        chroma.write(0, "I420".encodeToByteArray(), 0, 4)
+        val proposed = chroma.getByteArray(0, 4).decodeToString()
+        val l = Layout(w.getInt(0), h.getInt(0), Chroma.forProposed(proposed))
+        chroma.write(0, l.chroma.fourcc.encodeToByteArray(), 0, 4)
         pitches.setInt(0, l.lumaPitch)
         pitches.setInt(4, l.chromaPitch)
-        pitches.setInt(8, l.chromaPitch)
         lines.setInt(0, l.lumaLines)
         lines.setInt(4, l.chromaLines)
-        lines.setInt(8, l.chromaLines)
+        if (l.planes == 3) {
+            pitches.setInt(8, l.chromaPitch)
+            lines.setInt(8, l.chromaLines)
+        }
+        FrameStats.note("chroma $proposed -> ${l.chroma.fourcc} ${l.width}x${l.height}")
         synchronized(lock) {
             layout = l
             buffers = Array(BUFFERS) { Memory(l.bytes) }
@@ -94,7 +122,7 @@ internal class VideoFrames {
         } else {
             planes.setPointer(0, memory)
             planes.setPointer(ptr, memory.share(layoutNow.uOffset))
-            planes.setPointer(2 * ptr, memory.share(layoutNow.vOffset))
+            planes.setPointer(2 * ptr, if (layoutNow.planes == 3) memory.share(layoutNow.vOffset) else Pointer.NULL)
         }
         null
     }

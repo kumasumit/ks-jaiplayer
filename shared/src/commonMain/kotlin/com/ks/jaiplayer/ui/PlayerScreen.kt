@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,6 +67,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ks.jaiplayer.player.AudioNotice
 import com.ks.jaiplayer.player.PlaybackState
 import com.ks.jaiplayer.player.PlaybackStatus
 import com.ks.jaiplayer.player.PlayerAction
@@ -78,6 +80,8 @@ import com.ks.jaiplayer.resources.player_time_of
 import com.ks.jaiplayer.resources.player_fit_screen
 import com.ks.jaiplayer.resources.player_fill_screen
 import com.ks.jaiplayer.resources.player_brightness
+import com.ks.jaiplayer.resources.audio_notice_no_audio
+import com.ks.jaiplayer.resources.audio_notice_other_track
 import com.ks.jaiplayer.resources.error_cannot_open
 import com.ks.jaiplayer.resources.error_playback
 import com.ks.jaiplayer.resources.error_vlc_missing_title
@@ -108,6 +112,7 @@ import com.ks.jaiplayer.resources.player_speed_normal
 import com.ks.jaiplayer.resources.player_speed_slower
 import com.ks.jaiplayer.resources.player_speed_faster
 import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
 private const val HIDE_AFTER_MS = 3_000L
@@ -288,6 +293,8 @@ fun PlayerScreen(app: JaiPlayerState) {
         VideoSurface(app.engine, Modifier.fillMaxSize(), fill = fill)
         if (!state.hasVideo && state.status != PlaybackStatus.Opening) AudioOnly(state)
         state.error?.let { ErrorBanner(it, state, Modifier.align(Alignment.Center)) }
+        // Above the controls, and shown even when they are hidden.
+        AudioNoticeBanner(state, Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.safeDrawing).padding(top = 72.dp))
         hint?.let { GestureHintBadge(it, Modifier.align(Alignment.Center)) }
 
         // Reduce Motion (a system setting): the controls appear and go without fading.
@@ -345,6 +352,27 @@ private fun ErrorBanner(error: PlayerError, state: PlaybackState, modifier: Modi
         Text(text, Modifier.padding(horizontal = 20.dp, vertical = 14.dp), color = MaterialTheme.colorScheme.error)
     }
 }
+
+/** How long the message about unplayable audio stays on screen. */
+private const val AUDIO_NOTICE_MS = 8_000L
+
+@Composable
+private fun AudioNoticeBanner(state: PlaybackState, modifier: Modifier) {
+    val notice = state.audioNotice ?: return
+    var shown by remember(state.media, notice) { mutableStateOf(true) }
+    LaunchedEffect(state.media, notice) { delay(AUDIO_NOTICE_MS); shown = false }
+    if (!shown) return
+    Surface(modifier.padding(horizontal = 16.dp), color = Color(0xCC1D2025), shape = RoundedCornerShape(12.dp)) {
+        Text(stringResource(notice.message), Modifier.padding(horizontal = 20.dp, vertical = 12.dp), color = Color.White)
+    }
+}
+
+/** The sentence for each notice. */
+internal val AudioNotice.message: StringResource
+    get() = when (this) {
+        AudioNotice.OtherTrack -> Res.string.audio_notice_other_track
+        AudioNotice.NoAudio -> Res.string.audio_notice_no_audio
+    }
 
 @Composable
 private fun Controls(app: JaiPlayerState, state: PlaybackState, playFocus: FocusRequester, seekFocus: FocusRequester) {
@@ -427,15 +455,25 @@ private fun Controls(app: JaiPlayerState, state: PlaybackState, playFocus: Focus
                 if (form == FormFactor.Desktop) VolumeSlider(state, controller)
                 PluginControls(app, ControlSlot.Start, state)
                 Spacer(Modifier.weight(1f))
-                SpeedMenu(app, state)
-                if (series) EpisodeMenu(app, list)
-                PluginControls(app, ControlSlot.End, state)
+                // A phone has no room for everything in one row: the rest goes in a row of its own.
+                if (form != FormFactor.Phone) {
+                    SpeedMenu(app, state)
+                    if (series) EpisodeMenu(app, list)
+                    PluginControls(app, ControlSlot.End, state)
+                }
                 if (form == FormFactor.Desktop) {
                     ControlButton(
                         if (app.fullScreen) JaiIcons.ExitFullScreen else JaiIcons.FullScreen,
                         stringResource(if (app.fullScreen) Res.string.player_exit_full_screen else Res.string.player_full_screen),
                         { app.fullScreen = !app.fullScreen },
                     )
+                }
+            }
+            if (form == FormFactor.Phone) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    SpeedMenu(app, state)
+                    if (series) EpisodeMenu(app, list)
+                    PluginControls(app, ControlSlot.End, state)
                 }
             }
         }

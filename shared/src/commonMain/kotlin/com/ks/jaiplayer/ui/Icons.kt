@@ -88,6 +88,16 @@ object JaiIcons {
         moveTo(20f, 10.5f); lineTo(20f, 13.5f)
     })
 
+    /** Audio effects: three sliders with their knobs. */
+    val Effects = icon("effects", stroked = {
+        moveTo(6f, 4f); lineTo(6f, 20f)
+        moveTo(12f, 4f); lineTo(12f, 20f)
+        moveTo(18f, 4f); lineTo(18f, 20f)
+        moveTo(3.5f, 14f); lineTo(8.5f, 14f)
+        moveTo(9.5f, 8f); lineTo(14.5f, 8f)
+        moveTo(15.5f, 16f); lineTo(20.5f, 16f)
+    })
+
     val FullScreen = icon("fullscreen", stroked = {
         moveTo(4f, 9f); lineTo(4f, 4f); lineTo(9f, 4f)
         moveTo(15f, 4f); lineTo(20f, 4f); lineTo(20f, 9f)

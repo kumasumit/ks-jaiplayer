@@ -32,6 +32,13 @@ data class PlaybackState(
     /** The subtitle track shown, or null for none. */
     val subtitleTrackId: Int? = null,
     val error: PlayerError? = null,
+    /**
+     * The audio goes out still encoded (Dolby or DTS passthrough to a TV or receiver), so audio
+     * effects cannot apply to it.
+     */
+    val audioPassthrough: Boolean = false,
+    /** Set when audio could not be played and the engine carried on without it, or with another track. */
+    val audioNotice: AudioNotice? = null,
 ) {
     val isPlaying: Boolean get() = status == PlaybackStatus.Playing
     val canSeek: Boolean get() = durationMs > 0

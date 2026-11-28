@@ -5,7 +5,7 @@
     <uses-feature android:name="android.software.leanback" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
-    <application android:banner="@drawable/tv_banner">
+    <application android:banner="${tvBanner}">
         <!-- Read by formFactorOf(): this build is the TV app. -->
         <meta-data android:name="com.ks.jaiplayer.FORM_FACTOR" android:value="tv" />
         <activity android:name="com.ks.jaiplayer.android.MainActivity" android:exported="true">

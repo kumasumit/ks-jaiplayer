@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 /** macOS entry point: the system menu bar and Finder "Open With". Plays through the libVLC bundled in the app. */
 fun main(args: Array<String>) {
     System.setProperty("apple.laf.useScreenMenuBar", "true")
-    System.setProperty("apple.awt.application.name", "KS JaiPlayer")
+    System.setProperty("apple.awt.application.name", com.ks.jaiplayer.desktop.DesktopVariant.appName)
 
     // Finder sends files as Apple events, before or after the window exists. Set this first.
     if (Desktop.isDesktopSupported()) {

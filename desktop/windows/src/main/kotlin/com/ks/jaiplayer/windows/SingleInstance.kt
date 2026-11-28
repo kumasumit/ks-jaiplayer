@@ -15,7 +15,7 @@ import java.nio.channels.FileLock
  * app-data folder and writes the socket's port next to it.
  */
 object SingleInstance {
-    private val dir = File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"), "KS JaiPlayer").apply { mkdirs() }
+    private val dir = com.ks.jaiplayer.desktop.DesktopVariant.cacheDir().apply { mkdirs() }
     private var lock: FileLock? = null
 
     /** True when this process should run the app; false after handing [files] to the running one. */

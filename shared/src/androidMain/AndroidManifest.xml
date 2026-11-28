@@ -16,7 +16,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <application
-        android:label="KS JaiPlayer"
+        android:label="${appLabel}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:localeConfig="@xml/locales_config"
@@ -24,6 +24,9 @@
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true">
+        <!-- Perfetto and the CPU profiler may sample release builds from adb (specs/plan-android-cpu.md).
+             Shell only, not debuggable; Google allows it in production and it does not slow the app. -->
+        <profileable android:shell="true" />
         <activity
             android:name="com.ks.jaiplayer.android.MainActivity"
             android:exported="true"

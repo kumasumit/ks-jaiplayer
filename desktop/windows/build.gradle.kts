@@ -33,13 +33,19 @@ val AUDIO_TYPES = mapOf(
     "ogg" to "audio/ogg", "opus" to "audio/opus", "wma" to "audio/x-ms-wma",
 )
 
+// DEV builds (-PksVariant=dev, KS-Suite "DEV and PROD side by side") install next to the
+// production app: their own upgrade code (so their own product), name, install folder, shortcuts,
+// icon and app-data folder; no file types claimed; no updater.
+val dev = providers.gradleProperty("ksVariant").orNull == "dev"
+
 compose.desktop {
     application {
         jvmArgs += listOf("-Djaiplayer.version=${rootProject.extra["appVersionName.windows"]}")
+        if (dev) jvmArgs += listOf("-Djaiplayer.variant=dev")
         mainClass = "com.ks.jaiplayer.windows.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Msi)
-            packageName = "KS JaiPlayer"
+            packageName = if (dev) "KS JaiPlayer DEV" else "KS JaiPlayer"
             packageVersion = installerVersion
             description = "KS JaiPlayer, a media player"
             vendor = "KS-Suite"
@@ -50,14 +56,18 @@ compose.desktop {
                 menu = true
                 menuGroup = "KS-Suite"
                 // KS JaiPlayer's icon, 16 to 256 px.
-                iconFile.set(project.file("packaging/icon.ico"))
+                iconFile.set(project.file(if (dev) "packaging/icon-dev.ico" else "packaging/icon.ico"))
                 shortcut = true
                 dirChooser = true
                 // Fixed for the life of the app, so new versions upgrade the installed one.
-                upgradeUuid = "5d0f2a4e-8a3b-4f7e-9c51-2b6f1e0c7a93"
+                // DEV has its own, fixed too, so it never upgrades or removes production.
+                upgradeUuid = if (dev) "b8e3c1d7-4f26-4a9e-8d05-7c2f9a61e4b0" else "5d0f2a4e-8a3b-4f7e-9c51-2b6f1e0c7a93"
                 // "Open with" and double click in Explorer, for the same kinds of file as on macOS.
-                for ((ext, mime) in VIDEO_TYPES) fileAssociation(mime, ext, "Video")
-                for ((ext, mime) in AUDIO_TYPES) fileAssociation(mime, ext, "Audio")
+                // Only production claims them, so DEV never becomes their default app.
+                if (!dev) {
+                    for ((ext, mime) in VIDEO_TYPES) fileAssociation(mime, ext, "Video")
+                    for ((ext, mime) in AUDIO_TYPES) fileAssociation(mime, ext, "Audio")
+                }
             }
         }
         // Release builds are shrunk by ProGuard (unused library code removed; names kept).

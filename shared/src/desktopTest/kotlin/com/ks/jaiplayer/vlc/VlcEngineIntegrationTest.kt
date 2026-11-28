@@ -59,7 +59,11 @@ class VlcEngineIntegrationTest {
             engine.await("audio track") { it.audioTrackId == second }
 
             val srt = File.createTempFile("jaiplayer", ".srt").apply {
-                writeText("1\n00:00:00,000 --> 00:10:00,000\nHello from KS JaiPlayer subtitles\n")
+                // A new cue every second: libVLC shows no cue that began before the file was added.
+                writeText((0 until 600).joinToString("") { i ->
+                    val at = "00:%02d:%02d".format(i / 60, i % 60)
+                    "${i + 1}\n$at,000 --> $at,990\nHello from KS JaiPlayer subtitles\n\n"
+                })
                 deleteOnExit()
             }
             val before = brightPixelsInBottomQuarter(engine)
@@ -84,7 +88,9 @@ class VlcEngineIntegrationTest {
         val luma = frame.memory.getByteArray(0, l.lumaPitch * l.height)
         var n = 0
         for (y in l.height * 3 / 4 until l.height) for (x in 0 until l.width) {
-            if ((luma[y * l.lumaPitch + x].toInt() and 0xFF) > 220) n++
+            // The test decodes in software, so frames are 8-bit I420.
+            val value = luma[y * l.lumaPitch + x].toInt() and 0xFF
+            if (value > 220) n++
         }
         return n
     }

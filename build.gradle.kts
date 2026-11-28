@@ -37,7 +37,9 @@ val plainTagVersion: String? = git("describe", "--tags", "--abbrev=0", "--match"
 
 /** Platforms: android, google-tv, mac, windows (the tag prefixes). */
 fun appVersionNameOf(platform: String): String =
-    providers.gradleProperty("versionName").orNull
+    // A DEV build (ks-utility's DEV mode) passes its own version, X.Y.Z-dev+sha7.
+    providers.gradleProperty("ksDevVersion").orNull?.takeIf { it.isNotBlank() }
+        ?: providers.gradleProperty("versionName").orNull
         ?: listOfNotNull(
             plainTagVersion,
             git("describe", "--tags", "--abbrev=0", "--match", "$platform-v[0-9]*")?.removePrefix("$platform-v"),
@@ -69,6 +71,11 @@ fun signingValue(env: String, key: String): String? =
     providers.environmentVariable(env).orNull?.takeIf { it.isNotBlank() }
         ?: keystoreProperties.getProperty(key)?.takeIf { it.isNotBlank() }
 
+// DEV builds (-PksVariant=dev, KS-Suite "DEV and PROD side by side") install next to production:
+// application ID + ".dev" (so their own data), "KS JaiPlayer DEV", DEV-marked icon and banner, and
+// no updater. Production's ID, name and signing are unchanged; DEV signs with the DEV keystore secrets.
+val devVariant = providers.gradleProperty("ksVariant").orNull == "dev"
+
 val androidCompileSdk = libs.versions.androidCompileSdk.get().toInt()
 val androidMinSdk = libs.versions.androidMinSdk.get().toInt()
 val androidTargetSdk = libs.versions.androidTargetSdk.get().toInt()
@@ -84,6 +91,12 @@ subprojects {
                 targetSdk = androidTargetSdk
                 versionCode = appVersionCode + if (tv) TV_CODE_OFFSET else 0
                 versionName = appVersionNameOf(if (tv) "google-tv" else "android")
+                manifestPlaceholders["appLabel"] = if (devVariant) "KS JaiPlayer DEV" else "KS JaiPlayer"
+                if (devVariant) applicationIdSuffix = ".dev"
+                if (tv) manifestPlaceholders["tvBanner"] = if (devVariant) "@drawable/tv_banner_dev" else "@drawable/tv_banner"
+            }
+            if (devVariant) {
+                sourceSets.getByName("main").res.srcDir(rootProject.file("shared/android-dev/res"))
             }
             val storeFilePath = signingValue("SIGNING_STORE_FILE", "storeFile")
             if (storeFilePath != null) {

@@ -9,10 +9,21 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import com.ks.jaiplayer.audio.AudioChain
+import com.ks.jaiplayer.audio.AudioSupport
+import com.ks.jaiplayer.player.AudioFallback
+import com.ks.jaiplayer.player.AudioNotice
 import com.ks.jaiplayer.player.MediaRef
 import com.ks.jaiplayer.player.PlayerController.Companion.SEEK_STEP_MS
 import com.ks.jaiplayer.player.clampSpeed
@@ -34,17 +45,29 @@ import kotlinx.coroutines.launch
 
 /**
  * The Android and Google TV engine: Media3 ExoPlayer with the device's hardware decoders. When a
- * decoder fails, the next one for the format is tried. It takes audio focus (pauses for a call or
+ * decoder fails, the next one for the format is tried; audio that still cannot be decoded gives way to
+ * another audio track, or to the picture alone ([AudioFallback]). It takes audio focus (pauses for a call or
  * another player, lowers its volume for a notification) and pauses when headphones are unplugged.
  * Every call must come from the main thread, as ExoPlayer requires; the interface does that.
  *
  * Track ids are positions in ExoPlayer's track-group list of that type, so they stay valid
  * until the media changes.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 class ExoPlayerEngine(context: Context) : PlayerEngine {
+    /** The audio effects (specs/audio-effects.md), on decoded audio before Media3's speed change. */
+    private val effects = EffectsAudioProcessor()
+
     internal val player: ExoPlayer = ExoPlayer.Builder(
         context.applicationContext,
-        DefaultRenderersFactory(context.applicationContext).setEnableDecoderFallback(true),
+        object : DefaultRenderersFactory(context.applicationContext) {
+            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
+                DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(enableFloatOutput)
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessors(arrayOf(effects))
+                    .build()
+        }.setEnableDecoderFallback(true),
     )
         .setAudioAttributes(
             AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
@@ -85,12 +108,38 @@ class ExoPlayerEngine(context: Context) : PlayerEngine {
     private var muted = false
     private var subtitles = emptyList<MediaItem.SubtitleConfiguration>()
     private var everPlayed = false
+    private var videoEffects: AudioChain? = null
+    private var musicEffects: AudioChain? = null
+    private var passthrough = false
+    private val audioFallback = AudioFallback<TrackGroup>()
+    private var audioNotice: AudioNotice? = null
+
+    override val audioSupport = AudioSupport.Full
+
+    override fun setAudioEffects(video: AudioChain?, music: AudioChain?) {
+        videoEffects = video
+        musicEffects = music
+        applyEffects()
+    }
+
+    /** Music settings once the file is known to have no video; video settings otherwise. */
+    private fun applyEffects() = effects.setChain(if (isAudioOnly()) musicEffects else videoEffects)
 
     init {
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioTrackInitialized(eventTime: AnalyticsListener.EventTime, audioTrackConfig: AudioSink.AudioTrackConfig) {
+                passthrough = !Util.isEncodingLinearPcm(audioTrackConfig.encoding)
+                refresh()
+            }
+        })
         player.addListener(object : Player.Listener {
-            override fun onEvents(player: Player, events: Player.Events) = refresh()
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (events.contains(Player.EVENT_TRACKS_CHANGED)) applyEffects()
+                refresh()
+            }
 
             override fun onPlayerError(error: PlaybackException) {
+                if (recoverFromAudioError(error)) return
                 _state.update {
                     it.copy(status = PlaybackStatus.Error, error = if (everPlayed) PlayerError.Playback else PlayerError.CannotOpen)
                 }
@@ -102,6 +151,42 @@ class ExoPlayerEngine(context: Context) : PlayerEngine {
                 delay(250)
             }
         }
+    }
+
+    /**
+     * An audio decoder or audio output failure stops ExoPlayer altogether. Playback is prepared
+     * again, from the same position, with another audio track or with audio switched off; video
+     * stays on its hardware decoder. False when the error is not about audio.
+     */
+    private fun recoverFromAudioError(error: PlaybackException): Boolean {
+        val failure = error as? ExoPlaybackException ?: return false
+        if (failure.type != ExoPlaybackException.TYPE_RENDERER) return false
+        if (!MimeTypes.isAudio(failure.rendererFormat?.sampleMimeType)) return false
+        val tracks = player.currentTracks
+        val broken = tracks.groups.firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected } ?: return false
+        val playable = groupsOf(tracks, C.TRACK_TYPE_AUDIO).map { it.mediaTrackGroup }
+        val next = audioFallback.after(broken.mediaTrackGroup, playable, tracks.containsType(C.TRACK_TYPE_VIDEO))
+        val parameters = player.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+        when (next) {
+            is AudioFallback.Next.Track -> {
+                parameters.setOverrideForType(TrackSelectionOverride(next.track, 0))
+                audioNotice = AudioNotice.OtherTrack
+            }
+            AudioFallback.Next.PictureOnly -> {
+                parameters.setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                audioNotice = AudioNotice.NoAudio
+            }
+            AudioFallback.Next.Stop -> return false
+        }
+        player.trackSelectionParameters = parameters.build()
+        player.prepare()
+        return true
+    }
+
+    /** The file has audio, but the device has no decoder for any of it, so ExoPlayer plays the picture alone. */
+    private fun noSupportedAudio(tracks: Tracks): Boolean {
+        val audio = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        return audio.isNotEmpty() && audio.none { it.isSupported || it.isSelected } && tracks.containsType(C.TRACK_TYPE_VIDEO)
     }
 
     private fun refresh() {
@@ -127,6 +212,8 @@ class ExoPlayerEngine(context: Context) : PlayerEngine {
                 audioTrackId = selectedOf(tracks, C.TRACK_TYPE_AUDIO),
                 subtitleTrackId = selectedOf(tracks, C.TRACK_TYPE_TEXT),
                 error = if (status == PlaybackStatus.Error) it.error else null,
+                audioPassthrough = passthrough,
+                audioNotice = if (noSupportedAudio(tracks)) AudioNotice.NoAudio else audioNotice,
             )
         }
     }
@@ -147,6 +234,13 @@ class ExoPlayerEngine(context: Context) : PlayerEngine {
     override fun open(media: MediaRef) {
         everPlayed = false
         subtitles = emptyList()
+        // The last file's failed audio must not silence this one.
+        audioFallback.reset()
+        audioNotice = null
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .build()
         _state.update {
             PlaybackState(status = PlaybackStatus.Opening, media = media, volume = it.volume, muted = it.muted, speed = it.speed)
         }
@@ -191,7 +285,10 @@ class ExoPlayerEngine(context: Context) : PlayerEngine {
         _state.update { it.copy(speed = clamped) }
     }
 
-    override fun selectAudioTrack(id: Int) = select(C.TRACK_TYPE_AUDIO, id)
+    override fun selectAudioTrack(id: Int) {
+        audioNotice = null
+        select(C.TRACK_TYPE_AUDIO, id)
+    }
 
     override fun selectSubtitleTrack(id: Int?) {
         if (id == null) {

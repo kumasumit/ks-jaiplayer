@@ -20,6 +20,11 @@ internal object FrameStats {
 
     @Volatile private var firstFrameLogged = false
 
+    /** With JAIPLAYER_PERF=1: prints a one-off fact, such as the frame layout libVLC delivers. */
+    fun note(what: String) {
+        if (enabled) System.err.println("jaiplayer-video $what")
+    }
+
     /** With JAIPLAYER_PERF=1: prints how long after the process started [what] happened. */
     fun mark(what: String) {
         if (!enabled) return

@@ -14,6 +14,19 @@ class VlcPluginPolicyTest {
         assertNull(VlcPluginPolicy.exclusion("libpacketizer_a52_plugin.dylib", lgpl))
     }
 
+    @Test fun keepsWhatPlaybackNeedsAndDropsTheUnused() {
+        // Picture through vmem, hardware decoding, audio outputs, the audio effects, subtitles,
+        // rotation, deinterlacing, http(s) and the common formats: always kept.
+        val needed = listOf(
+            "vmem", "videotoolbox", "cvpx", "d3d11va", "dxva2", "auhal", "mmdevice", "directsound", "amem",
+            "equalizer", "compressor", "freetype", "libass", "subsdec", "transform", "deinterlace",
+            "http", "https", "adaptive", "gnutls", "dav1d", "avcodec", "mkv", "mp4", "swscale", "scaletempo",
+        )
+        needed.forEach { assertNull(VlcPluginPolicy.exclusion("lib${it}_plugin.dylib", lgpl), it) }
+        listOf("stream_out_transcode", "access_output_srt", "mux_mp4", "access_srt", "vout_macosx", "puzzle", "aom")
+            .forEach { assertEquals("not used by the app", VlcPluginPolicy.exclusion("lib${it}_plugin.dll", lgpl), it) }
+    }
+
     @Test fun leavesOutGplAndUnclearPlugins() {
         assertEquals("GPL", VlcPluginPolicy.exclusion("libx264_plugin.dylib", gpl))
         assertEquals("licence unclear", VlcPluginPolicy.exclusion("libmkv_plugin.dll", null))

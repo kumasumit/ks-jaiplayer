@@ -13,6 +13,9 @@ enum class FormFactor { Desktop, Phone, Tv }
 interface PlatformHost {
     val formFactor: FormFactor
 
+    /** A DEV build, installed next to production (KS-Suite "DEV and PROD side by side"): its title says DEV. */
+    val isDev: Boolean get() = false
+
     /** Shows the platform's file picker for video and audio; calls [onPicked] if a file is chosen. */
     fun pickMedia(onPicked: (MediaRef) -> Unit)
 

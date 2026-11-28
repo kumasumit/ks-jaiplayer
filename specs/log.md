@@ -1,5 +1,27 @@
+# 2026-11-28
+
+* **Update**: [Playback plan](plan-playback.md): the owner's player principles (platform hardware path first, no CPU/GPU frame copies, custom paths only for a measured reason).
+* **Update**: [Playback plan](plan-playback.md), [Progress](progress.md): the owner's completion criteria, tracked as open or done; phase P2-M added.
+* **Update**: [Android playback CPU](plan-android-cpu.md): the Pixel 11 Dolby failure (cause, also in 1.11.3) and the fix that keeps the video playing.
+* **Add**: [Playback plan](plan-playback.md): the owner-approved phases and gates, P0 started (Android Dolby audio, macOS HDR colour); it replaces the playback optimization brief.
+* **Update**: [Android playback CPU](plan-android-cpu.md): JaiPlayer DEV against VLC and MX Player on the Pixel 11 (CPU, memory, dropped frames, start, size, stress); 5.1 AC-3 and E-AC-3 stop playback in JaiPlayer.
+* **Update**: [macOS playback](plan-macos-playback.md): JaiPlayer DEV against VLC and IINA on 1080p60, Blu-ray-style and 4K HDR files.
+* **Add**: [macOS playback](plan-macos-playback.md): Job 2 measured: P010 cuts app CPU on 4K 10-bit from 51 to 34 %; 16-bit planar from software decoding measured worse and was dropped.
+* **Update**: [Smooth playback](smoothness.md): VideoToolbox's 10-bit video stays 10-bit (P010) in the desktop frame path; 10-bit software decoding is converted to 8-bit as before, since 16-bit planar frames measured worse.
+* **Update**: [Progress](progress.md): DEV builds of run 46108381085, the playback optimization brief's Job 1 done.
+* **Update**: [Android playback CPU](plan-android-cpu.md): Phase 2 results: steps 1, 2 and 4 no measurable change (not kept), step 3 not done (it would silence a chosen effect until the next seek), step 5 kept (profileable release builds) with a trace showing an uncompiled fresh install; compiled, JaiPlayer equals MX's pipeline; rule: compile every player before comparing.
+* **Update**: [Android playback CPU](plan-android-cpu.md) (Job 1 of the brief "Playback Optimization and StreamFlix Readiness"): the "MX Player 4× more efficient" claim corrected (app-only CPU; whole device the two are level), the rule to compare players on the whole device, the decoders confirmed hardware by their flags, Phase 2 replaced by Job 3; [Progress](progress.md) points to it.
+* **Update**: [Android CPU optimization](plan-android-cpu.md): Phase 2 proposed, six steps, each A/B tested on the Pixel 11, waiting for the owner's approval.
+* **Update**: [Android CPU optimization](plan-android-cpu.md): whole-device CPU on the Pixel 11, JaiPlayer 139–151 % against MX Player 157–177 % (MX's pipeline runs in mediaserver); 4K HEVC 10-bit decodes in hardware.
+* **Add**: [Android CPU optimization](plan-android-cpu.md): the owner's brief, the measurement method, the Pixel 11 baseline, what is ruled out and what is left of Phase 1.
+* **Update**: [DEV variant](dev-variant.md): the macOS DEV app claims video and audio files at rank Alternate like production, so Finder's Open With and `open -a` play the file (before, DEV started with no window).
+* **Update**: [Smooth playback](smoothness.md): Skia's GPU texture cache limited to 64 MB (187 to 237 MB less memory while playing on macOS). [Bundled libVLC](plan-bundled-vlc-and-plugins.md): 99 plugins the app never uses left out (194 kept), and the macOS app no longer carries the other chip's Skia library: the arm64 dmg goes from 103.4 to 80.5 MB.
+
 # 2026-11-27
 
+* **Added**: [Audio effects](audio-effects.md): presets (Original, Bass boost, Music, Cinema, Dialogue boost, Loud and clear, Night mode, Vocal boost, Custom) for videos and for music, bass and dialogue levels, a 10-band equalizer; Android and Google TV with JaiPlayer's own processor (equalizer, compression, limiter, centre channel), desktop with libVLC's equalizer (tone only). [Plugins](plugins.md) lists it; on a phone the speed, episode and plugin buttons move to a second row of the player bar, so none is cut off.
+* **Added**: [Progress](progress.md) and [Audit against the suite standards](plan-standards.md): class C confirmed, items classified, v1.11.3 size baseline, plan to the release pull request.
+* **Added**: [DEV builds side by side](dev-variant.md): `-PksVariant=dev` builds KS JaiPlayer DEV, with its own Android ID (`com.ks.jaiplayer.dev`), macOS bundle ID, Windows upgrade code, names, DEV-marked icons and banner, data folders and settings, no file types claimed and no updater, so it installs next to production and never touches it (KS-Suite "DEV and PROD side by side").
 * **Update**: on ks-utility v0.18.4; the release and bump workflows call ks-utility's shared workflows at `@main` (always its newest release), as KS-Suite's rule now asks.
 * **Update**: on ks-utility v0.16.0, with the shared workflows called at the same tag; the bump workflow passes `KS_WORKFLOWS_TOKEN` so a move also updates those refs.
 * **Update**: on ks-utility v0.15.0: the desktop update installer (Mac: open the dmg, say the app now closes, quit after 6 s) and its sentence now come from ks-utility's `appupdate`, replacing JaiPlayer's own copy; the release workflow runs ks-utility's `ks-suite-check`; `.github/workflows/ks-utility-bump.yml` moves to each new ks-utility tag the day it is released (tests first, then a push to dev).

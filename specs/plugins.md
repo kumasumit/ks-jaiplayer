@@ -30,6 +30,7 @@ Open a file or a series folder, play and pause, seek, volume and mute, full scre
 | Recent files | `recent-files` | The last 20 files on the home screen (missing ones greyed, remove one or all) and File › Open recent |
 | Resume | `resume` | Opens a file where it was left (files of 3 minutes or more, started, not in the last 5 %); keeps the last 50 positions; feeds Google TV's Continue watching row |
 | Tracks | `tracks` | Subtitle menu (off, embedded tracks, add a subtitle file), audio track menu, keys S and A, menu entries |
+| Audio effects | `audio-effects` | Presets for videos and for music, bass and dialogue levels, a 10-band equalizer ([Audio effects](audio-effects.md)) |
 
 ## Third-party plugins (desktop)
 The macOS and Windows apps also load plugins from jars the user adds, off until turned on in Settings › Plugins, with a versioned API (`PLUGIN_API_VERSION`). Android and Google TV keep the built-in plugins only, because Google Play does not allow loading code from files. How to write one: [Writing a desktop plugin](writing-plugins.md).

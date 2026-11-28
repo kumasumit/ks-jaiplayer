@@ -73,7 +73,7 @@ fun HomeScreen(app: JaiPlayerState) {
             Modifier.align(Alignment.TopCenter).widthIn(max = 720.dp).fillMaxWidth().padding(top = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Wordmark()
+            Wordmark(dev = app.host.isDev)
             Spacer(Modifier.height(32.dp))
             if (engineState.error == PlayerError.EngineMissing) {
                 EngineMissingCard()
@@ -116,7 +116,7 @@ fun HomeScreen(app: JaiPlayerState) {
 }
 
 @Composable
-private fun Wordmark() {
+private fun Wordmark(dev: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(10.dp)) {
             Icon(
@@ -126,7 +126,7 @@ private fun Wordmark() {
             )
         }
         Spacer(Modifier.size(12.dp))
-        Text(stringResource(Res.string.app_name), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.app_name) + if (dev) " DEV" else "", fontSize = 28.sp, fontWeight = FontWeight.Bold)
     }
 }
 

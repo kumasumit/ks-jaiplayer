@@ -49,7 +49,7 @@ fun shortLocation(file: File): String {
 }
 
 /** Settings in `java.util.prefs`: a plist in ~/Library/Preferences on macOS, the registry on Windows. */
-class PrefsSettingsStore(private val prefs: Preferences = Preferences.userRoot().node("com/ks/jaiplayer")) : SettingsStore {
+class PrefsSettingsStore(private val prefs: Preferences = Preferences.userRoot().node(DesktopVariant.prefsNode)) : SettingsStore {
     override fun getString(key: String): String? = prefs.get(key, null)
 
     override fun putString(key: String, value: String?) {

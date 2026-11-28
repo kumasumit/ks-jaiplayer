@@ -78,15 +78,9 @@ class DesktopPlugins(
         private const val KEY_PREFIX = "plugins.on."
         private val ID = Regex("[a-z0-9][a-z0-9.-]{1,63}")
 
-        /** macOS `~/Library/Application Support/KS JaiPlayer/plugins`, Windows `%APPDATA%\\KS JaiPlayer\\plugins`. */
+        /** macOS `~/Library/Application Support/KS JaiPlayer[ DEV]/plugins`, Windows `%APPDATA%\\KS JaiPlayer[ DEV]\\plugins`. */
         fun defaultFolder(): File {
-            val home = System.getProperty("user.home")
-            val base = if (System.getProperty("os.name").startsWith("Windows")) {
-                File(System.getenv("APPDATA") ?: home)
-            } else {
-                File(home, "Library/Application Support")
-            }
-            return File(File(base, "KS JaiPlayer"), "plugins")
+            return File(DesktopVariant.supportDir(), "plugins")
         }
     }
 }

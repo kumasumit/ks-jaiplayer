@@ -16,17 +16,9 @@ fun desktopAppVersion(): String = System.getProperty("jaiplayer.version")?.takeI
  * app now closes, and quits 6 s later so Finder can replace it. Nothing installs silently.
  */
 class DesktopInstaller(beforeQuit: () -> Unit) : UpdateInstaller {
-    private val windows = System.getProperty("os.name").startsWith("Windows")
-    private val installer = com.ks.utility.appupdate.DesktopInstaller("KS JaiPlayer", beforeQuit)
+    private val installer = com.ks.utility.appupdate.DesktopInstaller(DesktopVariant.appName, beforeQuit)
 
-    override fun downloadDir(): File {
-        val base = if (windows) {
-            File(System.getenv("LOCALAPPDATA") ?: System.getProperty("user.home"), "KS JaiPlayer")
-        } else {
-            File(System.getProperty("user.home"), "Library/Caches/com.ks.jaiplayer")
-        }
-        return File(base, "update")
-    }
+    override fun downloadDir(): File = File(DesktopVariant.cacheDir(), "update")
 
     override fun open(file: File): OpenedOn = when (installer.open(file)) {
         com.ks.utility.appupdate.DesktopInstaller.Opened.MAC -> OpenedOn.Mac
@@ -35,6 +27,8 @@ class DesktopInstaller(beforeQuit: () -> Unit) : UpdateInstaller {
 }
 
 fun desktopUpdater(settings: SettingsStore, beforeQuit: () -> Unit): GitHubUpdater? {
+    // A DEV build never offers production files (KS-Suite "DEV and PROD side by side").
+    if (DesktopVariant.isDev) return null
     val platform = UpdatePlatform.current() ?: return null
     return GitHubUpdater(GitHubUpdater.REPO, desktopAppVersion(), platform, settings, DesktopInstaller(beforeQuit)).also { it.start() }
 }

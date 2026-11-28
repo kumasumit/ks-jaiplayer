@@ -1,5 +1,7 @@
 package com.ks.jaiplayer.player
 
+import com.ks.jaiplayer.audio.AudioChain
+import com.ks.jaiplayer.audio.AudioSupport
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -35,6 +37,16 @@ interface PlayerEngine {
 
     /** Adds an external subtitle file ([uri]) and shows it. */
     fun addSubtitle(uri: String)
+
+    /** How much of the audio effects this engine can apply (specs/audio-effects.md). */
+    val audioSupport: AudioSupport get() = AudioSupport.None
+
+    /**
+     * The audio effects for video files and for music (null: audio left untouched). The engine
+     * uses [music] once it knows the file has no video, [video] otherwise, and keeps both for the
+     * next files. Applies at once, without restarting playback.
+     */
+    fun setAudioEffects(video: AudioChain?, music: AudioChain?) {}
 
     /** Stops playback and forgets the media; the engine can open another file afterwards. */
     fun stop()

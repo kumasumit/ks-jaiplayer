@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KS JaiPlayer DEV, adaptive icon foreground: the ring and play mark, smaller, with DEV under it (Inter, SIL OFL, as outlines). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeColor="#EBFFFFFF" android:strokeWidth="3.09" android:strokeLineCap="round" android:pathData="M59.76,31.69 A16.85,16.85 0 1 0 69.83,41.76" />
+    <path android:fillColor="#FFFFE7A8" android:pathData="M63.39,35.61 a2.53,2.53 0 1 0 5.05,0 a2.53,2.53 0 1 0 -5.05,0 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M49.51,41.62 Q49.51,39.10 51.70,40.34 L62.14,46.27 Q64.33,47.52 62.14,48.77 L51.70,54.70 Q49.51,55.94 49.51,53.42 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M45.51,79.00L43.25,79.00L43.25,77.28L45.42,77.28Q46.15,77.28 46.66,77.03Q47.16,76.79 47.42,76.23Q47.68,75.67 47.68,74.75Q47.68,73.83 47.41,73.28Q47.15,72.72 46.65,72.47Q46.14,72.22 45.39,72.22L43.21,72.22L43.21,70.50L45.51,70.50Q46.80,70.50 47.74,71.01Q48.67,71.52 49.18,72.47Q49.69,73.43 49.69,74.75Q49.69,76.07 49.18,77.03Q48.68,77.98 47.74,78.49Q46.80,79.00 45.51,79.00ZM44.40,70.50L44.40,79.00L42.38,79.00L42.38,70.50ZM50.82,79.00L50.82,70.50L56.72,70.50L56.72,72.14L52.84,72.14L52.84,73.90L56.42,73.90L56.42,75.51L52.84,75.51L52.84,77.36L56.72,77.36L56.72,79.00ZM60.48,79.00L57.56,70.50L59.82,70.50L61.00,74.21Q61.28,75.14 61.54,76.15Q61.80,77.17 62.06,78.29L61.62,78.29Q61.88,77.16 62.13,76.15Q62.37,75.14 62.64,74.21L63.77,70.50L66.01,70.50L63.17,79.00Z" />
+</vector>

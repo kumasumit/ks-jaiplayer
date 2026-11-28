@@ -52,7 +52,11 @@ kotlin {
             }
         }
         val desktopTest by getting {
-            dependencies { implementation(libs.kotlinx.coroutines.test) }
+            dependencies {
+                implementation(libs.kotlinx.coroutines.test)
+                // Skia's native library for this machine, so tests can draw video frames (VideoColourTest).
+                implementation(compose.desktop.currentOs)
+            }
         }
         androidMain.get().dependsOn(jvmSharedMain)
         androidMain.dependencies {

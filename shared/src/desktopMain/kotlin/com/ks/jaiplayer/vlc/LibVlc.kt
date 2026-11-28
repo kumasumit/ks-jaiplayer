@@ -45,6 +45,15 @@ internal interface LibVlc : Library {
     fun libvlc_audio_set_volume(player: Pointer, volume: Int): Int
     fun libvlc_audio_set_mute(player: Pointer, mute: Int)
 
+    // Equalizer (libVLC 3.0): ten bands at 60 Hz … 16 kHz, -20 to 20 dB. The player copies the
+    // values, so the equalizer may be freed right after libvlc_media_player_set_equalizer.
+    fun libvlc_audio_equalizer_new(): Pointer?
+    fun libvlc_audio_equalizer_release(equalizer: Pointer)
+    fun libvlc_audio_equalizer_set_preamp(equalizer: Pointer, preamp: Float): Int
+    fun libvlc_audio_equalizer_set_amp_at_index(equalizer: Pointer, amp: Float, band: Int): Int
+    /** [equalizer] null turns the equalizer off (the audio passes unchanged). */
+    fun libvlc_media_player_set_equalizer(player: Pointer, equalizer: Pointer?): Int
+
     fun libvlc_audio_get_track_description(player: Pointer): Pointer?
     fun libvlc_audio_get_track(player: Pointer): Int
     fun libvlc_audio_set_track(player: Pointer, id: Int): Int

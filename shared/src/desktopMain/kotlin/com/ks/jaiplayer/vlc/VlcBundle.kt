@@ -34,8 +34,38 @@ object VlcPluginPolicy {
         "cdda", "smb", "sid", "x262", "x264", "x26410b", "x265",
     )
 
-    /** Interfaces the app never uses. */
-    val unneeded = setOf("qt", "skins2")
+    /**
+     * Plugins the app never uses, left out to keep the installers small (about 25 MB, 9 MB
+     * compressed). KS JaiPlayer opens local files (`libvlc_media_new_path`) and draws the
+     * picture itself (`vmem`), so it needs no streaming out, no other network protocols than
+     * http(s), no VLC windows or interfaces and no effect filters. Decoders, demuxers,
+     * packetizers, subtitles, deinterlacing, rotation (`transform`) and the audio filters stay.
+     */
+    val unneeded = setOf(
+        // VLC's own interfaces and windows.
+        "qt", "skins2", "vout_macosx", "caopengllayer", "glconv_cvpx",
+        // Streaming, recording and converting out.
+        "access_output_dummy", "access_output_file", "access_output_http", "access_output_livehttp",
+        "access_output_rist", "access_output_shout", "access_output_srt", "access_output_udp",
+        "stream_out_autodel", "stream_out_bridge", "stream_out_chromaprint", "stream_out_chromecast",
+        "stream_out_delay", "stream_out_description", "stream_out_display", "stream_out_dummy",
+        "stream_out_duplicate", "stream_out_es", "stream_out_gather", "stream_out_mosaic_bridge",
+        "stream_out_record", "stream_out_setid", "stream_out_smem", "stream_out_standard",
+        "stream_out_stats", "stream_out_transcode", "mux_asf", "mux_avi", "mux_dummy", "mux_mp4",
+        "mux_mpjpeg", "mux_ogg", "mux_ps", "mux_ts", "mux_wav", "record", "demuxdump", "twolame",
+        // Network protocols other than http(s), network discovery and Chromecast.
+        "access_srt", "rist", "live555", "rtp", "rtpvideo", "satip", "upnp", "bonjour", "sftp",
+        "nfs", "ftp", "access_mms", "nsc", "sdp", "demux_chromecast",
+        // Capture devices, add-on stores, speech, digital cinema packages, a second AV1 decoder (dav1d stays).
+        "avcapture", "avaudiocapture", "screen", "shm", "addonsfsstorage", "addonsvorepository",
+        "nsspeechsynthesizer", "dcp", "aom",
+        // Effect filters and visualisations the app has no control for.
+        "visual", "puzzle", "psychedelic", "ripple", "wall", "mosaic", "ball", "magnify",
+        "motionblur", "oldmovie", "vhs", "sepia", "invert", "posterize", "gradient",
+        "edgedetection", "colorthres", "gaussianblur", "anaglyph", "blendbench", "bluescreen",
+        "clone", "erase", "extract", "freeze", "motiondetect", "scene", "audiobargraph_a",
+        "audiobargraph_v", "dynamicoverlay", "remoteosd", "rss", "fingerprinter", "flaschen",
+    )
 
     /** The plugin name in `libmp4_plugin.dylib` or `libmp4_plugin.dll`: `mp4`. */
     fun nameOf(fileName: String): String? = Regex("^lib(.+)_plugin\\.(dylib|dll|so)$").find(fileName)?.groupValues?.get(1)

@@ -32,7 +32,9 @@ concurrency:
 
 jobs:
   release:
-    uses: kumasumit/ks-utility/.github/workflows/kotlin-app-release.yml@main
+    # @dev while dev tries ks-utility's unreleased dev (DEV builds only; ks-suite-check refuses
+    # @dev in a tag release). Before the next production release: pin the newest tag, back to @main.
+    uses: kumasumit/ks-utility/.github/workflows/kotlin-app-release.yml@dev
     permissions:
       contents: write
       id-token: write

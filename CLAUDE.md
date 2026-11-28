@@ -43,6 +43,7 @@ JAIPLAYER_TEST_MEDIA=<video with 2 audio tracks> ./gradlew :shared:desktopTest  
 ./gradlew :desktop:mac:run --args="<file or folder>"         # run on macOS
 ./gradlew :desktop:mac:packageReleaseDmg                     # .dmg (on a Mac)
 ./gradlew :desktop:windows:packageReleaseMsi                 # .msi (on Windows / CI)
+./gradlew -PksVariant=dev <any of the above>                 # DEV build, installs next to production (specs/dev-variant.md)
 ```
 Native installers only build on their own OS. Releases use ks-utility's shared release workflow (`.github/workflows/release.yml` calls it). The build needs Node 23.6+ for the language files. `JAIPLAYER_VLC_LOG=<file>` writes libVLC's log for diagnosis only together with `JAIPLAYER_VLC_PATH=<a full VLC>`, since the logging plugin is GPL and not bundled. The real libVLC test uses the bundled copy in `desktop/mac/build/vlc-resources/common/vlc` (`./gradlew :desktop:mac:bundleVlc`); `JAIPLAYER_TEST_VLC=<folder with lib/ and plugins/>` picks another. `JAIPLAYER_PERF=1` prints frame rates once a second (see `specs/smoothness.md`). `JAIPLAYER_NO_SMTC=1` and `JAIPLAYER_NO_THUMBBAR=1` turn off the Windows media overlay and taskbar buttons, and `JAIPLAYER_NO_HW=1` VideoToolbox on macOS, for diagnosis. The macOS app image gets an AppCDS archive during packaging (`gradle/app-cds.gradle.kts`).
 

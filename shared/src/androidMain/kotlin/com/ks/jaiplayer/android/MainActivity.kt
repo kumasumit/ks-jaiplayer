@@ -105,7 +105,8 @@ class MainActivity : ComponentActivity() {
             engine.setTunneling(deviceFlag(TUNNELING, default = false))
         }
         val settings = PrefsStore(getSharedPreferences("settings", MODE_PRIVATE))
-        updater = if (isPlayBuild(this)) null else androidUpdater(this, settings, updatePlatformOf(form))
+        // The Play build has no updater; a DEV build (ID ending .dev) never offers production files.
+        updater = if (isPlayBuild(this) || packageName.endsWith(".dev")) null else androidUpdater(this, settings, updatePlatformOf(form))
         app = JaiPlayerState(
             engine = engine,
             host = host(form),
@@ -272,6 +273,8 @@ class MainActivity : ComponentActivity() {
 
     private fun host(form: FormFactor) = object : PlatformHost {
         override val formFactor = form
+
+        override val isDev: Boolean = packageName.endsWith(".dev")
 
         override val inPictureInPicture: Boolean get() = inPip.value
 

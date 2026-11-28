@@ -132,7 +132,7 @@ fun runDesktopApp(config: DesktopConfig) {
         Window(
             onCloseRequest = quit,
             state = windowState,
-            title = "KS JaiPlayer",
+            title = DesktopVariant.appName,
             // The window's own icon (Windows title bar and taskbar, the Dock when run from Gradle).
             icon = windowIcon,
         ) {
@@ -196,7 +196,7 @@ fun runDesktopApp(config: DesktopConfig) {
                 snapshotFlow { windowState.placement }.collect { app.fullScreen = it == WindowPlacement.Fullscreen }
             }
             ProvideLanguage(app.language) {
-                val appName = stringResource(Res.string.app_name)
+                val appName = stringResource(Res.string.app_name) + if (DesktopVariant.isDev) " DEV" else ""
                 window.title = app.playlist?.current?.title?.takeIf { app.screen == Screen.Player } ?: appName
                 AppMenuBar(app, config, quit)
                 androidx.compose.foundation.layout.Box {
@@ -338,6 +338,8 @@ private class DesktopHost(
     private val window: () -> Frame?,
 ) : PlatformHost {
     override val formFactor = FormFactor.Desktop
+
+    override val isDev: Boolean = DesktopVariant.isDev
 
     override val reduceMotion: Boolean by lazy { systemReducesMotion() }
 
